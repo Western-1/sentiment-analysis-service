@@ -20,14 +20,86 @@ This project demonstrates a modern microservices approach. Instead of a monolith
 
 ```mermaid
 graph LR
-    User([Client Request]) -->|POST /sentiment| API[FastAPI Container]
-    API -->|Inference| Model[HuggingFace Model]
-    API -->|Log Result| Redis[(Redis Container)]
-    User -->|GET /history| API
-    API <-->|Fetch Logs| Redis
+  %% --- Styling Definitions ---
+  %% Existing Components: Bold colors, solid lines
+  classDef app fill:#e1f5fe,stroke:#0277bd,stroke-width:2px,color:#000
+  classDef db fill:#ffcdd2,stroke:#c62828,stroke-width:2px,color:#000
+  classDef ext fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#000
+  
+  %% Planned Components: Grey, dashed lines, lighter text
+  classDef planned fill:#fafafa,stroke:#9e9e9e,stroke-width:2px,stroke-dasharray: 5 5,color:#616161
+  
+  %% Network Boundaries
+  classDef net fill:none,stroke:#546e7a,stroke-width:2px,stroke-dasharray: 5 5,color:#546e7a
 
-    style API fill:#009688,stroke:#333,stroke-width:2px,color:white
-    style Redis fill:#DD0031,stroke:#333,stroke-width:2px,color:white
+  %% --- Actors ---
+  User([User / Client])
+  style User fill:#fff,stroke:#333,stroke-width:2px,color:#000
+
+  %% --- Ingress Layer (Planned) ---
+  subgraph Ingress [Ingress Layer]
+    direction TB
+    Nginx[Nginx Reverse Proxy]:::planned
+  end
+
+  %% --- Private Docker Network ---
+  subgraph DockerNet [Private Docker Network]
+    
+    %% App Service
+    subgraph Container_App [App Service]
+      direction TB
+      Gunicorn[Gunicorn Manager]:::app
+      subgraph Workers [Async Workers]
+        Uvicorn[Uvicorn Worker]:::app
+        Logic[Lazy Load Logic]:::app
+      end
+    end
+
+    %% Storage Service
+    Redis[(Redis DB)]:::db
+  end
+
+  %% --- External / Cloud ---
+  subgraph External [External Services]
+    HF_Hub[HuggingFace Hub]:::ext
+    HFCache[Volume: HF Cache]:::ext
+    S3[(S3 Archive)]:::planned
+    Prometheus[Metrics]:::planned
+  end
+
+  %% === Data Flow ===
+  
+  %% 1. Request Flow (Current vs Planned)
+  User -->|"1. HTTPS Request"| Nginx
+  Nginx -.->|"2. Forward (Planned)"| Gunicorn
+  User -.->|"Direct Access (Current Dev)"| Gunicorn
+
+  %% 2. Internal Processing
+  Gunicorn -->|"3. Spawn Processes"| Uvicorn
+  Uvicorn -->|"4. Inference"| Logic
+  
+  %% 3. Model Loading
+  Logic -.->|"Download (First run)"| HF_Hub
+  Logic -->|"Load from"| HFCache
+  
+  %% 4. Async Logging
+  Uvicorn -->|"5. LPUSH (Async)"| Redis
+  Redis -->|"LTRIM (Auto-cleanup)"| Redis
+  
+  %% 5. Read History
+  User -->|"GET /history"| Uvicorn
+  Uvicorn <-->|"LRANGE"| Redis
+
+  %% 6. Future Monitoring
+  Redis -.->|"Archive (Planned)"| S3
+  Uvicorn -.->|"/metrics (Planned)"| Prometheus
+
+  %% Apply Network Styles
+  style DockerNet fill:none,stroke:#607d8b,stroke-width:2px,stroke-dasharray: 5 5
+  style Ingress fill:none,stroke:none
+  style External fill:none,stroke:none
+  style Container_App fill:#f1f8e9,stroke:#558b2f,stroke-width:1px
+  style Workers fill:#fff,stroke:none
 ```
 
 ### Key Features
