@@ -207,6 +207,17 @@ docker compose up -d --build
 
 ![Translation Example](Images/2.png)
 
+## Live Demo
+
+Check out the deployed API (Swagger UI):  
+**[http://13.61.33.199:8000/docs](http://13.61.33.199:8000/docs)** 
+
+> [!IMPORTANT]
+> Active (Hosted on AWS EC2 Free Tier)
+
+> [!NOTE]
+> Since this is a free tier instance, it might be stopped to save resources. If the link is down, please **contact me**, and I will restart it immediately.
+
 ## License
 
 **MIT License**
