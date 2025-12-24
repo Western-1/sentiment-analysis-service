@@ -1,35 +1,29 @@
 # NLP Inference Microservice (Docker Compose & Redis)
 
-![Python](https://img.shields.io/badge/python-3.9-blue.svg)
-![License](https://img.shields.io/badge/license-MIT-green.svg)
-![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=flat&logo=docker&logoColor=white)
-![Redis](https://img.shields.io/badge/redis-%23DD0031.svg?style=flat&logo=redis&logoColor=white)
+![CI Pipeline](https://github.com/Western-1/nlp-inference-service/actions/workflows/ci.yml/badge.svg) 
+![Python Version](https://img.shields.io/badge/python-3.9-blue.svg) 
+![License](https://img.shields.io/badge/license-MIT-green.svg) 
+![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=flat&logo=docker&logoColor=white) 
+![Redis](https://img.shields.io/badge/redis-%23DD0031.svg?style=flat&logo=redis&logoColor=white) 
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.109.0-009688.svg)
-![HuggingFace](https://img.shields.io/badge/Models-HuggingFace-yellow.svg)
 
-A production-ready **Microservices Architecture** for Natural Language Processing.  
-This project orchestrates multiple containers using **Docker Compose**: a FastAPI application for inference and a **Redis** database for high-speed logging and persistence.
+A production-ready **Microservices Architecture** for Natural Language Processing. This project orchestrates multiple containers using **Docker Compose**: a FastAPI application for inference and a **Redis** database for high-speed logging and persistence.
+
+It features a fully automated **CI/CD Pipeline** via GitHub Actions.
 
 ![Dashboard Overview](Images/1.png)
 
----
-
 ## Architecture & Workflow
 
-This project demonstrates a modern microservices approach. Instead of a monolithic script, the system decouples inference from data persistence.
+This project demonstrates a modern microservices approach. Instead of a monolithic script, the system decouples inference from data persistence and includes automated testing pipelines.
 
 ```mermaid
 graph LR
   %% --- Styling Definitions ---
-  %% Existing Components: Bold colors, solid lines
   classDef app fill:#e1f5fe,stroke:#0277bd,stroke-width:2px,color:#000
   classDef db fill:#ffcdd2,stroke:#c62828,stroke-width:2px,color:#000
   classDef ext fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#000
-  
-  %% Planned Components: Grey, dashed lines, lighter text
   classDef planned fill:#fafafa,stroke:#9e9e9e,stroke-width:2px,stroke-dasharray: 5 5,color:#616161
-  
-  %% Network Boundaries
   classDef net fill:none,stroke:#546e7a,stroke-width:2px,stroke-dasharray: 5 5,color:#546e7a
 
   %% --- Actors ---
@@ -68,33 +62,25 @@ graph LR
   end
 
   %% === Data Flow ===
-  
-  %% 1. Request Flow (Current vs Planned)
   User -->|"1. HTTPS Request"| Nginx
   Nginx -.->|"2. Forward (Planned)"| Gunicorn
-  User -.->|"Direct Access (Current Dev)"| Gunicorn
+  User -.->|"Direct Access (Dev)"| Gunicorn
 
-  %% 2. Internal Processing
   Gunicorn -->|"3. Spawn Processes"| Uvicorn
   Uvicorn -->|"4. Inference"| Logic
   
-  %% 3. Model Loading
   Logic -.->|"Download (First run)"| HF_Hub
   Logic -->|"Load from"| HFCache
   
-  %% 4. Async Logging
   Uvicorn -->|"5. LPUSH (Async)"| Redis
   Redis -->|"LTRIM (Auto-cleanup)"| Redis
   
-  %% 5. Read History
   User -->|"GET /history"| Uvicorn
   Uvicorn <-->|"LRANGE"| Redis
 
-  %% 6. Future Monitoring
   Redis -.->|"Archive (Planned)"| S3
   Uvicorn -.->|"/metrics (Planned)"| Prometheus
 
-  %% Apply Network Styles
   style DockerNet fill:none,stroke:#607d8b,stroke-width:2px,stroke-dasharray: 5 5
   style Ingress fill:none,stroke:none
   style External fill:none,stroke:none
@@ -102,102 +88,102 @@ graph LR
   style Workers fill:#fff,stroke:none
 ```
 
-### Key Features
+## Key Features
 
-- **Microservices Orchestration:** Fully dockerized environment via `docker-compose`
-- **Multi-Model Inference:** `DistilBERT` (Sentiment) & `Helsinki-NLP` (Translation)
-- **Persistent Storage:** Asynchronous logging to Redis
-- **Request History:** Dedicated endpoint for audit and debugging
-- **Strict Validation:** Pydantic schemas enforce type safety
-
----
+- **Microservices Orchestration:** Fully dockerized environment via `docker-compose`.
+- **CI/CD Pipeline:** Automated testing via GitHub Actions on every push.
+- **Multi-Model Inference:** `DistilBERT` (Sentiment) & `Helsinki-NLP` (Translation).
+- **Persistent Storage:** Asynchronous logging to Redis using `LPUSH`/`LTRIM`.
+- **Mocked Testing:** Unit tests use `unittest.mock` to simulate ML models and Redis in CI environments.
 
 ## Tech Stack
 
 - **Orchestration:** Docker Compose
+- **CI/CD:** GitHub Actions
 - **Core:** Python 3.9, FastAPI, Uvicorn
 - **Database:** Redis (Alpine)
-- **ML Backend:** PyTorch, Transformers, SentencePiece
+- **ML Backend:** PyTorch, Transformers
 - **Models:**
   - `distilbert-base-uncased-finetuned-sst-2-english`
   - `Helsinki-NLP/opus-mt-en-fr`
-
----
 
 ## Project Structure
 
 ```
 .
+├── .github/workflows/   # CI/CD Pipeline configuration
+├── tests/               # Unit & Integration tests
+├── Images/              # Documentation assets
 ├── docker-compose.yml   # Service orchestration (App + Redis)
 ├── Dockerfile           # App container configuration
 ├── main.py              # Application logic & endpoints
-├── requirements.txt     # Python dependencies
-└── Images/              # Documentation assets
+└── requirements.txt     # Python dependencies
 ```
-
----
 
 ## Installation and Setup
 
 ### Prerequisites
-- Docker Engine
-- Docker Compose
+Docker Engine & Docker Compose installed.
 
-### Quick Start
-
-1. **Clone the repository**
+### Quick Start (Local)
+1. **Clone the repository:**
 ```bash
 git clone https://github.com/Western-1/nlp-inference-service
 cd nlp-inference-service
 ```
-
-2. **Start the services**
+2. **Start the Services:**
 ```bash
 docker-compose up --build
 ```
+3. **Access API:**
+Open `http://localhost:8000/docs` to see the Swagger UI.
 
-> [!NOTE]
-> The first launch may take several minutes while ML models are downloaded from Hugging Face.
+## Development & Testing
 
-3. **Stop the system**
+This project uses **Pytest** for unit and integration testing. The CI pipeline runs these tests automatically.
+
+To run tests locally:
 ```bash
-docker-compose down
+pip install pytest httpx
+
+pytest tests/ -v
 ```
 
----
+## Deployment (AWS EC2)
+
+This service is designed to be deployed on AWS EC2 (Ubuntu Server).
+
+1. **Provision Infrastructure:**
+   - Launch `t3.micro` instance (Ubuntu 24.04).
+   - Configure Security Group: Open ports `22` (SSH) and `8000` (API).
+   - Configure Swap file (4GB) to handle ML model memory requirements.
+
+2. **Deploy:**
+```bash
+ssh -i key.pem ubuntu@<EC2_IP>
+git clone https://github.com/Western-1/nlp-inference-service
+docker compose up -d --build
+```
 
 ## API Documentation
-
-Interactive Swagger UI is available at: `http://localhost:8000/docs`
 
 ### 1. Health Check
 `GET /` - Checks service status and Redis connection.
 
 ### 2. Request History
 `GET /history` - Returns the last 10 requests stored in Redis.
-
-```json
-[
-  {
-    "timestamp": "2025-12-24 18:30:00",
-    "task": "TRANSLATION",
-    "input": "Hello",
-    "result": "Bonjour"
-  }
-]
-```
+![History Example](Images/3.png)
 
 ### 3. Sentiment Analysis
-`POST /sentiment` -  Classifies text as **POSITIVE** or **NEGATIVE**.
+`POST /sentiment` - Classifies text as **POSITIVE** or **NEGATIVE**.
 
-**Request**
+**Example Request:**
 ```json
 {
   "text": "The deployment process was incredibly smooth."
 }
 ```
-
-**Response**
+**Example Response:**
 ```json
 {
   "result": [
@@ -210,17 +196,9 @@ Interactive Swagger UI is available at: `http://localhost:8000/docs`
 ```
 
 ### 4. Translation (En → Fr)
-`POST /translate`  
-Translates English text to French.
+`POST /translate` - Translates English text to French.
 
-**Request**
-```json
-{
-  "text": "Hello world, this is a test."
-}
-```
-
-**Response**
+**Example Response:**
 ```json
 {
   "translated_text": "Bonjour le monde, c'est un test."
@@ -228,21 +206,6 @@ Translates English text to French.
 ```
 
 ![Translation Example](Images/2.png)
-
----
-
-## Logging Architecture
-
-Instead of synchronous file logging, the service uses **Redis Lists** as a high‑performance buffer.
-
-1. __API__ receives a request  
-2. Model generates a prediction  
-3. Result is serialized to __JSON__ and pushed to `service_history`  
-4. `/history` endpoint retrieves recent entries via `LRANGE`
-
-![Logs Preview](Images/3.png)
-
----
 
 ## License
 
