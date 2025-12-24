@@ -6,3 +6,5 @@ torch==2.2.0 --index-url https://download.pytorch.org/whl/cpu
 sentencepiece==0.1.99
 pydantic==2.6.0
 gunicorn==21.2.0
+pytest==8.0.0
+httpx==0.26.0
