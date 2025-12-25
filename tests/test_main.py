@@ -12,7 +12,7 @@ def test_health_check():
     """
     response = client.get("/")
     assert response.status_code == 200
-    assert response.json() == {"status": "Online", "db_status": "Connected to Redis"}
+    assert response.json() == {"status": "Online & Monitored with W&B", "db_status": "Connected to Redis"}
 
 def test_get_history_empty():
     """
