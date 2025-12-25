@@ -2,6 +2,7 @@ import os
 import redis
 import json
 import asyncio
+import wandb
 from datetime import datetime
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
@@ -13,6 +14,24 @@ REDIS_HOST = os.getenv("REDIS_HOST", "redis-db")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 HISTORY_LIMIT = 1000
 
+WANDB_KEY = os.getenv("WANDB_API_KEY")
+if WANDB_KEY:
+    try:
+        wandb.login(key=WANDB_KEY)
+        
+        wandb.init(
+            project="nlp-inference-service",
+            name="production-model-v1",
+            config={
+                "model": "distilbert-base-uncased",
+                "framework": "fastapi",
+                "environment": "production"
+            }
+        )
+        print("Connected to Weights & Biases")
+    except Exception as e:
+        print(f"W&B Connection failed: {e}")
+
 app = FastAPI(title="NLP Microservice with Redis")
 
 Instrumentator().instrument(app).expose(app)
@@ -23,16 +42,16 @@ _models = {}
 
 async def get_model(task_name: str, model_name: str):
     """
-    Загружает модель только когда она нужна первый раз.
+    Loads the model only when needed for the first time (Lazy Loading).
     """
     if task_name not in _models:
-        print(f"⏳ Loading model for {task_name}...")
+        print(f"Loading model for {task_name}...")
         loop = asyncio.get_running_loop()
         _models[task_name] = await loop.run_in_executor(
             None, 
             lambda: pipeline(task_name, model=model_name)
         )
-        print(f"✅ Model {task_name} loaded!")
+        print(f"Model {task_name} loaded!")
     return _models[task_name]
 
 class APIInput(BaseModel):
@@ -54,7 +73,7 @@ def save_log(task, text, result):
 
 @app.get("/")
 def home():
-    return {"status": "Online", "db_status": "Connected to Redis"}
+    return {"status": "Online & Monitored with W&B", "db_status": "Connected to Redis"}
 
 @app.get("/history")
 def get_history():
@@ -68,7 +87,20 @@ def get_history():
 async def predict_sentiment(data: APIInput):
     model = await get_model("sentiment-analysis", "distilbert-base-uncased-finetuned-sst-2-english")
     result = model(data.text)
+    
+    label = result[0]['label']
+    score = result[0]['score']
+
     save_log("SENTIMENT", data.text, result)
+
+    if WANDB_KEY:
+        wandb.log({
+            "input_text": data.text,
+            "prediction": label,
+            "confidence": score,
+            "text_length": len(data.text)
+        })
+
     return {"result": result}
 
 @app.post("/translate")
