@@ -128,13 +128,16 @@ graph LR
 
 ```
 .
-├── .github/workflows/   # CI/CD Pipeline configuration
-├── tests/               # Unit & Integration tests
-├── Images/              # Documentation assets
-├── docker-compose.yml   # Service orchestration (App + Redis)
-├── Dockerfile           # App container configuration
-├── main.py              # Application logic & endpoints
-└── requirements.txt     # Python dependencies
+├── .github/workflows/        # CI/CD pipeline configuration (GitHub Actions)
+├── grafana/                 # Grafana dashboard templates (JSON)
+├── Images/                  # Documentation screenshots and diagrams
+├── nginx/                   # Nginx reverse proxy configuration
+├── prometheus/              # Prometheus monitoring rules & alerting
+├── tests/                   # Unit & integration tests
+├── docker-compose.yml       # Service orchestration (app, redis, nginx, monitoring)
+├── Dockerfile               # FastAPI container configuration
+├── main.py                  # Application entrypoint (FastAPI app)
+└── requirements.txt         # Python dependencies
 ```
 
 ## Installation and Setup
