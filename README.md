@@ -226,6 +226,22 @@ Try the API live here (Reverse Proxy via Nginx):
 
 ![Docker Compose server](Images/architecture_live.png)
 
+## Monitoring & Metrics
+
+The service comes with built-in **Prometheus** instrumentation. It automatically collects metrics like request latency, memory usage, and request counts.
+
+### Live Access
+You can view the raw metrics exposed by the application here:
+**Metrics Endpoint:** [https://western-nlp.ddns.net/metrics](https://western-nlp.ddns.net/metrics)
+
+![Docker Compose server](Images/Monitoring_and_Metrics.png)
+
+### How to check locally
+If you run the container locally, you can check metrics via curl:
+```bash
+curl http://localhost:8000/metrics
+```
+
 ## License
 
 **MIT License**
