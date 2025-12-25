@@ -6,10 +6,14 @@
 ![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=flat&logo=docker&logoColor=white) 
 ![Redis](https://img.shields.io/badge/redis-%23DD0031.svg?style=flat&logo=redis&logoColor=white) 
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.109.0-009688.svg)
+![Nginx](https://img.shields.io/badge/nginx-%23009639.svg?style=flat&logo=nginx&logoColor=white)
+![SSL](https://img.shields.io/badge/SSL-Secure-green.svg?style=flat&logo=letsencrypt)
 
 A production-ready **Microservices Architecture** for Natural Language Processing. This project orchestrates multiple containers using **Docker Compose**: a FastAPI application for inference and a **Redis** database for high-speed logging and persistence.
 
 It features a fully automated **CI/CD Pipeline** via GitHub Actions.
+
+![HTTPS Link](Images/HTTPS.png)
 
 ![Dashboard Overview](Images/1.png)
 
@@ -23,17 +27,17 @@ graph LR
   classDef app fill:#e1f5fe,stroke:#0277bd,stroke-width:2px,color:#000
   classDef db fill:#ffcdd2,stroke:#c62828,stroke-width:2px,color:#000
   classDef ext fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#000
+  classDef proxy fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#000
   classDef planned fill:#fafafa,stroke:#9e9e9e,stroke-width:2px,stroke-dasharray: 5 5,color:#616161
-  classDef net fill:none,stroke:#546e7a,stroke-width:2px,stroke-dasharray: 5 5,color:#546e7a
 
   %% --- Actors ---
   User([User / Client])
   style User fill:#fff,stroke:#333,stroke-width:2px,color:#000
 
-  %% --- Ingress Layer (Planned) ---
+  %% --- Ingress Layer (Production) ---
   subgraph Ingress [Ingress Layer]
     direction TB
-    Nginx[Nginx Reverse Proxy]:::planned
+    Nginx[Nginx Reverse Proxy <br/> SSL Termination]:::proxy
   end
 
   %% --- Private Docker Network ---
@@ -45,7 +49,7 @@ graph LR
       Gunicorn[Gunicorn Manager]:::app
       subgraph Workers [Async Workers]
         Uvicorn[Uvicorn Worker]:::app
-        Logic[Lazy Load Logic]:::app
+        Logic[ML Inference Logic]:::app
       end
     end
 
@@ -54,7 +58,7 @@ graph LR
   end
 
   %% --- External / Cloud ---
-  subgraph External [External Services]
+  subgraph External [External Resources]
     HF_Hub[HuggingFace Hub]:::ext
     HFCache[Volume: HF Cache]:::ext
     S3[(S3 Archive)]:::planned
@@ -62,9 +66,8 @@ graph LR
   end
 
   %% === Data Flow ===
-  User -->|"1. HTTPS Request"| Nginx
-  Nginx -.->|"2. Forward (Planned)"| Gunicorn
-  User -.->|"Direct Access (Dev)"| Gunicorn
+  User -->|"1. HTTPS (Port 443)"| Nginx
+  Nginx -->|"2. Proxy Pass (Port 8000)"| Gunicorn
 
   Gunicorn -->|"3. Spawn Processes"| Uvicorn
   Uvicorn -->|"4. Inference"| Logic
@@ -78,8 +81,9 @@ graph LR
   User -->|"GET /history"| Uvicorn
   Uvicorn <-->|"LRANGE"| Redis
 
-  Redis -.->|"Archive (Planned)"| S3
-  Uvicorn -.->|"/metrics (Planned)"| Prometheus
+  %% Future roadmap
+  Redis -.->|"Future Archive"| S3
+  Uvicorn -.->|"Future Monitoring"| Prometheus
 
   style DockerNet fill:none,stroke:#607d8b,stroke-width:2px,stroke-dasharray: 5 5
   style Ingress fill:none,stroke:none
@@ -103,6 +107,8 @@ graph LR
 - **Core:** Python 3.9, FastAPI, Uvicorn
 - **Database:** Redis (Alpine)
 - **ML Backend:** PyTorch, Transformers
+- **Infrastructure:** Docker Compose, Nginx (Reverse Proxy)
+- **Security:** SSL/TLS (Let's Encrypt), Automated Cert Renewal
 - **Models:**
   - `distilbert-base-uncased-finetuned-sst-2-english`
   - `Helsinki-NLP/opus-mt-en-fr`
@@ -155,7 +161,7 @@ This service is designed to be deployed on AWS EC2 (Ubuntu Server).
 
 1. **Provision Infrastructure:**
    - Launch `t3.micro` instance (Ubuntu 24.04).
-   - Configure Security Group: Open ports `22` (SSH) and `8000` (API).
+   - Configure Security Group: Open ports `22` (SSH), `80`(HTTP) and `443` (HTTPS).
    - Configure Swap file (4GB) to handle ML model memory requirements.
 
 2. **Deploy:**
@@ -210,13 +216,15 @@ docker compose up -d --build
 ## Live Demo
 
 Try the API live here (Reverse Proxy via Nginx):  
-**[http://western-nlp.ddns.net/docs](http://western-nlp.ddns.net/docs)**
+**[https://western-nlp.ddns.net/docs](https://western-nlp.ddns.net/docs)**
 
 > [!IMPORTANT]
 > Active (Hosted on AWS EC2 Free Tier)
 
 > [!NOTE]
 > Since this is a free tier instance, it might be stopped to save resources. If the link is down, please **contact me**, and I will restart it immediately.
+
+![Docker Compose server](Images/architecture_live.png)
 
 ## License
 

@@ -4,6 +4,7 @@ services:
   nlp-app:
     build: .
     container_name: nlp-app
+    restart: always
     expose:
       - "8000"
     environment:
@@ -17,6 +18,7 @@ services:
   nginx:
     image: nginx:alpine
     container_name: nginx-proxy
+    restart: always
     ports:
       - "80:80"
       - "443:443"
@@ -29,6 +31,7 @@ services:
   redis-db:
     image: redis:alpine
     container_name: redis-db
+    restart: always
     ports:
       - "6379:6379"
     volumes:
