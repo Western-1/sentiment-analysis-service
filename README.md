@@ -11,6 +11,7 @@
 ![SSL](https://img.shields.io/badge/SSL-Secure-green.svg?style=flat&logo=letsencrypt)
 ![Prometheus](https://img.shields.io/badge/Prometheus-E6522C?style=flat&logo=Prometheus&logoColor=white)
 ![Grafana](https://img.shields.io/badge/Grafana-F46800?style=flat&logo=Grafana&logoColor=white)
+![Weights & Biases](https://img.shields.io/badge/Weights_&_Biases-FFBE00?style=flat&logo=WeightsAndBiases&logoColor=white)
 
 A production-ready **Microservices Architecture** for Natural Language Processing. This project orchestrates multiple containers using **Docker Compose**: a FastAPI application for inference and a **Redis** database for high-speed logging and persistence.
 
@@ -111,6 +112,7 @@ graph LR
 - **Multi-Model Inference:** `DistilBERT` (Sentiment) & `Helsinki-NLP` (Translation).
 - **Persistent Storage:** Asynchronous logging to Redis using `LPUSH`/`LTRIM`.
 - **Mocked Testing:** Unit tests use `unittest.mock` to simulate ML models and Redis in CI environments.
+- **MLOps Integration:** Real-time experiment tracking and model performance monitoring via **Weights & Biases**.
 
 ## Tech Stack
 
@@ -277,6 +279,17 @@ Visualizes key metrics such as Requests Per Second (RPS), Latency (P99), Memory 
 ![Prometheus console](Images/prometheus_console.png)
 
 ![Grafana Dashboard](Images/grafana_dashboard.png)
+
+## MLOps: Experiment Tracking
+
+The project is fully integrated with **Weights & Biases (W&B)** to track model performance in production. Unlike standard system monitoring (Prometheus), W&B focuses on the **quality of the ML model**.
+
+It logs:
+- **Inputs & Outputs:** What users are asking and how the model responds.
+- **Confidence Scores:** Tracks how "sure" the model is about its predictions.
+- **System Resources:** Correlates inference time with CPU/Memory usage.
+
+![W&B Dashboard](Images/wandb_dashboard.png)
 
 
 ## License
