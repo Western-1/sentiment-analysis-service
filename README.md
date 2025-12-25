@@ -1,6 +1,7 @@
 # NLP Inference Microservice (Docker Compose & Redis)
 
-![CI Pipeline](https://github.com/Western-1/nlp-inference-service/actions/workflows/ci.yml/badge.svg) 
+![CI Pipeline](https://github.com/Western-1/nlp-inference-service/actions/workflows/ci.yml/badge.svg)
+![CD Pipeline](https://github.com/Western-1/nlp-inference-service/actions/workflows/deploy.yml/badge.svg)
 ![Python Version](https://img.shields.io/badge/python-3.9-blue.svg) 
 ![License](https://img.shields.io/badge/license-MIT-green.svg) 
 ![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=flat&logo=docker&logoColor=white) 
@@ -106,7 +107,7 @@ graph LR
 ## Key Features
 
 - **Microservices Orchestration:** Fully dockerized environment via `docker-compose`.
-- **CI/CD Pipeline:** Automated testing via GitHub Actions on every push.
+- **CI/CD Pipeline:** Automated testing via GitHub Actions and **Automatic Deployment to AWS EC2** on every push to `main`.
 - **Multi-Model Inference:** `DistilBERT` (Sentiment) & `Helsinki-NLP` (Translation).
 - **Persistent Storage:** Asynchronous logging to Redis using `LPUSH`/`LTRIM`.
 - **Mocked Testing:** Unit tests use `unittest.mock` to simulate ML models and Redis in CI environments.
@@ -171,19 +172,34 @@ pytest tests/ -v
 
 ## Deployment (AWS EC2)
 
-This service is designed to be deployed on AWS EC2 (Ubuntu Server).
+The project uses a **Continuous Deployment (CD)** pipeline. Any change pushed to the `main` branch is automatically deployed to the AWS EC2 instance using GitHub Actions.
 
-1. **Provision Infrastructure:**
-   - Launch `t3.micro` instance (Ubuntu 24.04).
-   - Configure Security Group: Open ports `22` (SSH), `80`(HTTP) and `443` (HTTPS).
-   - Configure Swap file (4GB) to handle ML model memory requirements.
+### 1. Initial Setup (One-time)
+Provision the infrastructure and setup Docker:
+1. Launch an AWS `t3.micro` instance (Ubuntu 24.04).
+2. Configure Security Group: Open ports `22` (SSH), `80` (HTTP), and `443` (HTTPS).
+3. Connect via SSH and install Docker & Docker Compose.
+4. Clone the repo manually **only for the first run**:
+   ```bash
+   git clone [https://github.com/Western-1/nlp-inference-service](https://github.com/Western-1/nlp-inference-service)
+   cd nlp-inference-service
+   docker compose up -d --build
 
-2. **Deploy:**
-```bash
-ssh -i key.pem ubuntu@<EC2_IP>
-git clone https://github.com/Western-1/nlp-inference-service
-docker compose up -d --build
-```
+## 2. Configure GitHub Secrets
+For the CD pipeline to work, add these secrets in repo settings (`Settings` -> `Secrets and variables` -> `Actions`):
+
+| Secret Name | Value |
+|-------------|-------|
+| `EC2_HOST` | Public IP or DNS of your EC2 instance |
+| `EC2_USER` | SSH Username (e.g., `ubuntu`) |
+| `EC2_SSH_KEY` | Private SSH Key (`.pem` content) |
+
+## 3. Automatic Updates
+No manual action is required for updates.
+
+Push changes to `main`.
+
+GitHub Actions will SSH into the server, pull the latest code, rebuild containers, and cleanup unused images.
 
 ## API Documentation
 
