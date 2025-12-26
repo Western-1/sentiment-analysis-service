@@ -1,0 +1,18 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  group_by: ['alertname']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 1h
+  receiver: 'telegram'
+
+receivers:
+  - name: 'telegram'
+    telegram_configs:
+      - send_resolved: true
+        api_url: 'https://api.telegram.org'
+        bot_token: 'TOKEN_PLACEHOLDER'
+        chat_id: CHAT_ID_PLACEHOLDER
+        parse_mode: 'HTML'

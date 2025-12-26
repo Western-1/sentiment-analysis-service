@@ -12,9 +12,15 @@ services:
       - REDIS_PORT=6379
       - WANDB_API_KEY=${WANDB_API_KEY}
     depends_on:
-      - redis-db
+      redis-db:
+        condition: service_healthy
     volumes:
       - huggingface_cache:/root/.cache/huggingface
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   archiver:
     build: ./archiver
@@ -26,7 +32,8 @@ services:
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - S3_BUCKET_NAME=${S3_BUCKET_NAME}
     depends_on:
-      - redis-db
+      redis-db:
+        condition: service_healthy
 
   nginx:
     image: nginx:alpine
@@ -51,6 +58,11 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
   prometheus:
     image: prom/prometheus:latest
