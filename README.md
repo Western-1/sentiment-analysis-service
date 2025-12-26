@@ -34,7 +34,6 @@ graph LR
   classDef db fill:#ffcdd2,stroke:#c62828,stroke-width:2px,color:#000
   classDef ext fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#000
   classDef proxy fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#000
-  classDef planned fill:#fafafa,stroke:#9e9e9e,stroke-width:2px,stroke-dasharray: 5 5,color:#616161
   classDef monitor fill:#fff3e0,stroke:#ef6c00,stroke-width:2px,color:#000
   classDef alert fill:#ffab91,stroke:#d84315,stroke-width:2px,color:#000
 
@@ -62,7 +61,7 @@ graph LR
       end
     end
 
-    %% Archiver (Data pipeline service in same network)
+    %% Archiver (Active Data Pipeline)
     Archiver[Python Archiver Service]:::app
 
     %% Storage Service
@@ -80,7 +79,7 @@ graph LR
   subgraph External [External Resources]
     HF_Hub[HuggingFace Hub]:::ext
     HFCache[Volume: HF Cache]:::ext
-    S3[(S3 Archive)]:::planned
+    S3[(AWS S3 Archive)]:::ext
     Telegram([Telegram Bot]):::ext
   end
 
@@ -94,13 +93,13 @@ graph LR
   Logic -.->|"Download (First run)"| HF_Hub
   Logic -->|"Load from"| HFCache
   
-  Uvicorn -->|"5. LPUSH (Async logs / events)"| Redis
+  Uvicorn -->|"5. LPUSH (Async logs)"| Redis
   Redis -->|"LTRIM (Auto-cleanup)"| Redis
   
   User -->|"GET /history"| Uvicorn
   Uvicorn <-->|"LRANGE"| Redis
 
-  %% Archiver / Data Pipeline
+  %% Archiver / Data Pipeline (Active)
   Archiver -->|"1. Fetch & Clear"| Redis
   Archiver -->|"2. Upload JSON"| S3
 
@@ -112,9 +111,6 @@ graph LR
   Prometheus -.->|"Fire Alert (Down > 1m)"| Alertmanager
   Alertmanager -.->|"Send Notification"| Telegram
   Telegram -.->|"Critical Alert"| User
-
-  %% Future roadmap
-  Redis -.->|"Future Archive"| S3
 
   style DockerNet fill:none,stroke:#607d8b,stroke-width:2px,stroke-dasharray: 5 5
   style Ingress fill:none,stroke:none
@@ -141,6 +137,8 @@ To prevent Redis memory exhaustion, the system implements a **scheduled archivin
   3. The file is uploaded to an **AWS S3 Bucket** with a timestamped filename.
   4. Local cache and temporary Redis keys are cleared.
 - **Benefits:** Long-term storage for ML re-training while keeping the production DB lean.
+
+![Archive console](Images/Archive_console.png)
 
 ## Tech Stack
 
@@ -196,6 +194,16 @@ docker-compose up --build
 3. **Access API:**
 Open `http://localhost:8000/docs` to see the Swagger UI.
 
+4. **Create .env file:**
+Create a `.env` file in the root directory with your credentials (optional for local test, required for S3):
+```bash
+AWS_ACCESS_KEY_ID=your_key
+AWS_SECRET_ACCESS_KEY=your_secret
+S3_BUCKET_NAME=your_backet_name
+...
+```
+and etc..
+
 ## Development & Testing
 
 This project uses **Pytest** for unit and integration testing. The CI pipeline runs these tests automatically.
@@ -204,7 +212,7 @@ To run tests locally:
 ```bash
 pip install pytest httpx
 
-pytest tests/ -v
+PYTHONPATH=. pytest tests/ -v
 ```
 
 ## Code Quality & Security
