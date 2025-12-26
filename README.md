@@ -28,7 +28,7 @@ It features a fully automated **CI/CD Pipeline** via GitHub Actions.
 This project demonstrates a modern microservices approach. Instead of a monolithic script, the system decouples inference from data persistence and includes automated testing pipelines.
 
 ```mermaid
-graph LR
+graph TD
   %% --- Styling Definitions ---
   classDef app fill:#e1f5fe,stroke:#0277bd,stroke-width:2px,color:#000
   classDef db fill:#ffcdd2,stroke:#c62828,stroke-width:2px,color:#000
@@ -43,17 +43,14 @@ graph LR
 
   %% --- Ingress Layer (Production) ---
   subgraph Ingress [Ingress Layer]
-    direction TB
     Nginx[Nginx Reverse Proxy<br/>SSL Termination]:::proxy
   end
 
   %% --- Private Docker Network ---
   subgraph DockerNet [Private Docker Network]
-    direction TB
-
+    
     %% App Service
     subgraph Container_App [App Service]
-      direction TB
       Gunicorn[Gunicorn Manager]:::app
       subgraph Workers [Async Workers]
         Uvicorn[Uvicorn Worker]:::app
@@ -61,10 +58,8 @@ graph LR
       end
     end
 
-    %% Archiver (Active Data Pipeline)
+    %% Archiver & Storage
     Archiver[Python Archiver Service]:::app
-
-    %% Storage Service
     Redis[(Redis DB)]:::db
 
     %% Monitoring Stack
