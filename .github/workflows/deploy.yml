@@ -21,11 +21,18 @@ jobs:
             git reset --hard origin/main
             git pull origin main
             
+            # Injecting environment variables for Docker Compose
             echo "WANDB_API_KEY=${{ secrets.WANDB_API_KEY }}" > .env
+            echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> .env
+            echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> .env
+            echo "S3_BUCKET_NAME=${{ secrets.S3_BUCKET_NAME }}" >> .env
             
+            # Configuring notification tokens
             sed -i "s|TOKEN_PLACEHOLDER|${{ secrets.TELEGRAM_TOKEN }}|g" alertmanager/config.yml
             sed -i "s|CHAT_ID_PLACEHOLDER|${{ secrets.TELEGRAM_CHAT_ID }}|g" alertmanager/config.yml
             
+            # Rebuild and start services
             docker compose up -d --build
             
+            # Clean up unused images and containers
             docker system prune -f

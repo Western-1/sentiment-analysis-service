@@ -12,6 +12,8 @@
 ![Prometheus](https://img.shields.io/badge/Prometheus-E6522C?style=flat&logo=Prometheus&logoColor=white)
 ![Grafana](https://img.shields.io/badge/Grafana-F46800?style=flat&logo=Grafana&logoColor=white)
 ![Weights & Biases](https://img.shields.io/badge/Weights_&_Biases-FFBE00?style=flat&logo=WeightsAndBiases&logoColor=white)
+![AWS S3](https://img.shields.io/badge/AWS_S3-FF9900?style=flat&logo=amazons3&logoColor=white)
+![Boto3](https://img.shields.io/badge/Boto3-Cloud_Storage-blue)
 
 A production-ready **Microservices Architecture** for Natural Language Processing. This project orchestrates multiple containers using **Docker Compose**: a FastAPI application for inference and a **Redis** database for high-speed logging and persistence.
 
@@ -43,12 +45,13 @@ graph LR
   %% --- Ingress Layer (Production) ---
   subgraph Ingress [Ingress Layer]
     direction TB
-    Nginx[Nginx Reverse Proxy <br/> SSL Termination]:::proxy
+    Nginx[Nginx Reverse Proxy<br/>SSL Termination]:::proxy
   end
 
   %% --- Private Docker Network ---
   subgraph DockerNet [Private Docker Network]
-    
+    direction TB
+
     %% App Service
     subgraph Container_App [App Service]
       direction TB
@@ -59,9 +62,12 @@ graph LR
       end
     end
 
+    %% Archiver (Data pipeline service in same network)
+    Archiver[Python Archiver Service]:::app
+
     %% Storage Service
     Redis[(Redis DB)]:::db
-    
+
     %% Monitoring Stack
     subgraph Observability [Monitoring Stack]
         Prometheus[Prometheus]:::monitor
@@ -88,11 +94,15 @@ graph LR
   Logic -.->|"Download (First run)"| HF_Hub
   Logic -->|"Load from"| HFCache
   
-  Uvicorn -->|"5. LPUSH (Async)"| Redis
+  Uvicorn -->|"5. LPUSH (Async logs / events)"| Redis
   Redis -->|"LTRIM (Auto-cleanup)"| Redis
   
   User -->|"GET /history"| Uvicorn
   Uvicorn <-->|"LRANGE"| Redis
+
+  %% Archiver / Data Pipeline
+  Archiver -->|"1. Fetch & Clear"| Redis
+  Archiver -->|"2. Upload JSON"| S3
 
   %% Monitoring Flow
   Prometheus -->|"Scrape /metrics"| Uvicorn
@@ -122,6 +132,16 @@ graph LR
 - **Mocked Testing:** Unit tests use `unittest.mock` to simulate ML models and Redis in CI environments.
 - **MLOps Integration:** Real-time experiment tracking and model performance monitoring via **Weights & Biases**.
 
+## Data Retention & Archiving
+
+To prevent Redis memory exhaustion, the system implements a **scheduled archiving pipeline**:
+- **Archiver Service:** A lightweight Python container that runs on a schedule.
+- **Workflow:** 1. Every 60 seconds, it performs an atomic `RENAME` of the log key in Redis.
+  2. It converts the raw data into a structured `.json` file.
+  3. The file is uploaded to an **AWS S3 Bucket** with a timestamped filename.
+  4. Local cache and temporary Redis keys are cleared.
+- **Benefits:** Long-term storage for ML re-training while keeping the production DB lean.
+
 ## Tech Stack
 
 - **Orchestration:** Docker Compose
@@ -139,16 +159,23 @@ graph LR
 
 ```
 .
-├── .github/workflows/        # CI/CD pipeline configuration (GitHub Actions)
-├── grafana/                 # Grafana dashboard templates (JSON)
-├── Images/                  # Documentation screenshots and diagrams
-├── nginx/                   # Nginx reverse proxy configuration
-├── prometheus/              # Prometheus monitoring rules & alerting
-├── tests/                   # Unit & integration tests
-├── docker-compose.yml       # Service orchestration (app, redis, nginx, monitoring)
-├── Dockerfile               # FastAPI container configuration
-├── main.py                  # Application entrypoint (FastAPI app)
-└── requirements.txt         # Python dependencies
+├── app/                  # Inference Service (FastAPI)
+│   ├── main.py           # API endpoints and ML logic
+│   ├── Dockerfile        # Multi-stage production build
+│   └── requirements.txt  # NLP & Web dependencies
+├── archiver/             # Data Pipeline Service (S3 Worker)
+│   ├── main.py           # Scheduled archiving logic
+│   ├── Dockerfile        # Lightweight Python environment
+│   └── requirements.txt  # Boto3, Redis, and Scheduling tools
+├── alertmanager/         # Monitoring alerts configuration
+├── grafana/              # Dashboards as Code (JSON)
+├── nginx/                # Reverse Proxy & SSL configuration
+├── prometheus/           # Metrics collection & alerting rules
+├── tests/                # Unit & Integration testing suite
+├── docker-compose.yml    # Full stack orchestration
+├── .github/workflows/    # CI/CD Automated Pipelines
+└── README.md             # Documentation
+
 ```
 
 ## Installation and Setup
@@ -226,6 +253,9 @@ For the CD pipeline to work, add these secrets in repo settings (`Settings` -> `
 | `WANDB_API_KEY`| `ef2f...` | API Key for Weights & Biases |
 | `TELEGRAM_TOKEN`| `12345:ABC...` | Bot Token from @BotFather |
 | `TELEGRAM_CHAT_ID`| `12345678` | Your User ID for notifications |
+| `AWS_ACCESS_KEY_ID` | `AKIA...` | IAM User Access Key with S3 permissions |
+| `AWS_SECRET_ACCESS_KEY` | `wJalrX...` | IAM User Secret Access Key |
+| `S3_BUCKET_NAME` | `western-nlp-logs-archive` | Target S3 Bucket name |
 
 ## 3. Automatic Updates
 No manual action is required for updates.

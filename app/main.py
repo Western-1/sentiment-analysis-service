@@ -1,48 +1,37 @@
 import os
-import redis
 import json
 import asyncio
-import wandb
 from datetime import datetime
+from typing import Any
+
+import redis
+import wandb
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from transformers import pipeline
-from typing import Optional
 from prometheus_fastapi_instrumentator import Instrumentator
 
 REDIS_HOST = os.getenv("REDIS_HOST", "redis-db")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
-HISTORY_LIMIT = 1000
+HISTORY_LIMIT = int(os.getenv("HISTORY_LIMIT", 1000))
 
 WANDB_KEY = os.getenv("WANDB_API_KEY")
-if WANDB_KEY:
-    try:
-        wandb.login(key=WANDB_KEY)
-        
-        wandb.init(
-            project="nlp-inference-service",
-            name="production-model-v1",
-            config={
-                "model": "distilbert-base-uncased",
-                "framework": "fastapi",
-                "environment": "production"
-            }
-        )
-        print("Connected to Weights & Biases")
-    except Exception as e:
-        print(f"W&B Connection failed: {e}")
 
 app = FastAPI(title="NLP Microservice with Redis")
 
 Instrumentator().instrument(app).expose(app)
 
-r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
-
 _models = {}
+_wandb_inited = False
+
+def get_redis() -> redis.Redis:
+    """Factory to get redis client. Tests should patch this."""
+    return redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
 
 async def get_model(task_name: str, model_name: str):
     """
     Loads the model only when needed for the first time (Lazy Loading).
+    Kept async-friendly by running pipeline in executor.
     """
     if task_name not in _models:
         print(f"Loading model for {task_name}...")
@@ -57,8 +46,10 @@ async def get_model(task_name: str, model_name: str):
 class APIInput(BaseModel):
     text: str = Field(..., min_length=1, max_length=1000, title="Input text", description="Text to analyze/translate")
 
-def save_log(task, text, result):
+def save_log(task: str, text: str, result: Any):
+    """Save a log to Redis using factory get_redis."""
     try:
+        r = get_redis()
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         log_data = {
             "timestamp": timestamp,
@@ -71,13 +62,46 @@ def save_log(task, text, result):
     except Exception as e:
         print(f"Redis log error: {e}")
 
+@app.on_event("startup")
+async def startup_event():
+    """Initialize heavier external integrations (W&B) on startup — not at import time."""
+    global _wandb_inited
+    if WANDB_KEY:
+        try:
+            wandb.login(key=WANDB_KEY)
+            wandb.init(
+                project="nlp-inference-service",
+                name="production-model-v1",
+                config={
+                    "model": "distilbert-base-uncased",
+                    "framework": "fastapi",
+                    "environment": "production"
+                }
+            )
+            _wandb_inited = True
+            print("Connected to Weights & Biases")
+        except Exception as e:
+            print(f"W&B Connection failed: {e}")
+
 @app.get("/")
 def home():
-    return {"status": "Online & Monitored with W&B", "db_status": "Connected to Redis"}
+    """Health check — also returns Redis connectivity status by ping."""
+    try:
+        r = get_redis()
+        db_ok = False
+        try:
+            db_ok = r.ping()
+        except Exception:
+            db_ok = False
+        db_status = "Connected to Redis" if db_ok else "Redis unavailable"
+        return {"status": "Online & Monitored with W&B", "db_status": db_status}
+    except Exception as e:
+        return {"status": "Online", "db_status": f"Error: {e}"}
 
 @app.get("/history")
 def get_history():
     try:
+        r = get_redis()
         logs = r.lrange("api_logs", 0, 9)
         return [json.loads(log) for log in logs]
     except Exception as e:
@@ -93,13 +117,16 @@ async def predict_sentiment(data: APIInput):
 
     save_log("SENTIMENT", data.text, result)
 
-    if WANDB_KEY:
-        wandb.log({
-            "input_text": data.text,
-            "prediction": label,
-            "confidence": score,
-            "text_length": len(data.text)
-        })
+    if _wandb_inited:
+        try:
+            wandb.log({
+                "input_text": data.text,
+                "prediction": label,
+                "confidence": score,
+                "text_length": len(data.text)
+            })
+        except Exception as e:
+            print(f"W&B log error: {e}")
 
     return {"result": result}
 
@@ -107,6 +134,6 @@ async def predict_sentiment(data: APIInput):
 async def translate_text(data: APIInput):
     model = await get_model("translation_en_to_fr", "Helsinki-NLP/opus-mt-en-fr")
     result = model(data.text)
-    translated_text = result[0]['translation_text']
+    translated_text = result[0].get('translation_text') or result[0].get('translation', '')
     save_log("TRANSLATION", data.text, translated_text)
     return {"translated_text": translated_text}

@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   nlp-app:
-    build: .
+    build: ./app
     container_name: nlp-app
     restart: always
     expose:
@@ -15,6 +15,18 @@ services:
       - redis-db
     volumes:
       - huggingface_cache:/root/.cache/huggingface
+
+  archiver:
+    build: ./archiver
+    container_name: archiver
+    restart: always
+    environment:
+      - REDIS_HOST=redis-db
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME}
+    depends_on:
+      - redis-db
 
   nginx:
     image: nginx:alpine

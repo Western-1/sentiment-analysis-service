@@ -7,11 +7,12 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build-and-test:
+  test:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
-    - name: Checkout code
+    - name: Checkout repository
       uses: actions/checkout@v4
 
     - name: Set up Python
@@ -19,32 +20,45 @@ jobs:
       with:
         python-version: "3.9"
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
+    - name: Upgrade pip
+      run: python -m pip install --upgrade pip
 
-    
-    - name: Lint with flake8
-      run: |
-        # stop the build if there are Python syntax errors or undefined names
-        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        # exit-zero treats all errors as warnings.
-        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    - name: Install app dependencies
+      run: pip install -r app/requirements.txt
 
-    - name: Security scan with Bandit
-      run: |
-        bandit -r . --exclude ./tests -f custom --msg-template "{abspath}:{line}: {test_id}[bandit]: {msg}"
+    - name: Install archiver dependencies
+      run: pip install -r archiver/requirements.txt
 
-    # --------------------------------
+    - name: Install test tools
+      run: pip install pytest httpx flake8 bandit
+
+    - name: Lint (flake8)
+      run: |
+        flake8 . \
+          --count \
+          --select=E9,F63,F7,F82 \
+          --show-source \
+          --statistics
+        flake8 . \
+          --count \
+          --exit-zero \
+          --max-complexity=10 \
+          --max-line-length=127 \
+          --statistics
+
+    - name: Security scan (Bandit)
+      run: |
+        bandit -r . \
+          --exclude ./tests \
+          -f custom \
+          --msg-template "{abspath}:{line}: {test_id}[bandit]: {msg}"
 
     - name: Start Redis
       uses: supercharge/redis-github-action@1.7.0
 
-    - name: Run Tests
+    - name: Run tests
       env:
         REDIS_HOST: localhost
         REDIS_PORT: 6379
-        PYTHONPATH: .
-      run: |
-        pytest tests/ -v
+        PYTHONPATH: .:./app:./archiver
+      run: pytest tests/ -v

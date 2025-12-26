@@ -5,8 +5,8 @@ RUN apt-get update && apt-get install -y build-essential
 
 COPY requirements.txt .
 RUN pip wheel --no-cache-dir -r requirements.txt -w /wheels
-FROM python:3.9-slim
 
+FROM python:3.9-slim
 WORKDIR /app
 COPY --from=builder /wheels /wheels
 RUN pip install --no-cache-dir /wheels/*
