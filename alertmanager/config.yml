@@ -1,0 +1,13 @@
+route:
+  receiver: 'telegram-bot'
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 3h
+
+receivers:
+  - name: 'telegram-bot'
+    telegram_configs:
+      - bot_token: '8318279790:AAEh6FVvD4QyZkTwvtoAgfRyxSfxTFI47EY'
+        chat_id: 913466065 ## u can use ur tg id and token.
+        message: '{{ range .Alerts }}🚨 <b>{{ .Annotations.summary }}</b>{{ end }}'
+        parse_mode: 'HTML'

@@ -1,0 +1,11 @@
+groups:
+  - name: critical_alerts
+    rules:
+      - alert: InstanceDown
+        expr: up{job="nlp-app"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "NLP App is DOWN on {{ $labels.instance }}"
+          description: "Service has been down for more than 1 minute."
