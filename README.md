@@ -274,7 +274,7 @@ GitHub Actions will SSH into the server, pull the latest code, rebuild container
 To prevent unauthorized usage, the API implements **API Key Authentication**.
 All inference and history endpoints (`/sentiment`, `/translate`, `/history`) require the `X-API-Key` header. Public endpoints (`/`, `/health`) remain open.
 
-### 🔑 Live Demo Access
+### 🔑 Public Demo Key
 For recruitment and testing purposes, a **public demo key** is available:
 
 > **Header Name:** `X-API-Key`
